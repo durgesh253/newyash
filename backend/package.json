@@ -1,0 +1,60 @@
+{
+  "name": "nodejs-rest-api",
+  "version": "1.0.0",
+  "description": "Node.js Rest API with JWT Authentication",
+  "author": "jignesh chaudhari>",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js",
+    "dev": "nodemon server.js",
+    "debug": "node --debug server.js",
+    "inspect": "node --inspect server.js"
+  },
+  "keywords": [
+    "node.js",
+    "express",
+    "jwt",
+    "authentication",
+    "mysql"
+  ],
+  "dependencies": {
+    "@google-cloud/translate": "^9.0.1",
+    "@vitalets/google-translate-api": "^9.2.1",
+    "axios": "^1.7.9",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.20.2",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.9",
+    "express": "^4.17.3",
+    "express-validator": "^7.0.1",
+    "firebase-admin": "^11.10.1",
+    "free-translate": "^0.6.1",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^8.5.1",
+    "moment": "^2.29.4",
+    "mongoose": "^6.10.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.5.2",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.4",
+    "openai": "^4.86.1",
+    "path": "^0.12.7",
+    "request": "^2.88.2",
+    "retell-sdk": "^4.19.0",
+    "sequelize": "^6.18.0",
+    "socket.io": "^4.7.2",
+    "stream": "^0.0.2",
+    "translate-api": "^0.3.18",
+    "twilio": "^5.4.5",
+    "util": "^0.12.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

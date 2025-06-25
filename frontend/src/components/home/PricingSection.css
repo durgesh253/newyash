@@ -1,0 +1,32 @@
+/* Minimal custom toggle for pricing section */
+.custom-toggle {
+  width: 44px;
+  height: 24px;
+  background: #232b3b;
+  border-radius: 9999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  outline: none;
+  padding: 0;
+}
+.custom-toggle.checked {
+  background: #3b82f6;
+}
+.toggle-thumb {
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  transition: left 0.2s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.custom-toggle.checked .toggle-thumb {
+  left: 22px;
+} 
