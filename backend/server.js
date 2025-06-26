@@ -25,6 +25,11 @@ var corsOptions = {
   origin: "*",
 };
 
+const cors = require('cors');
+app.use(cors({
+  origin: 'https://lead-reach-ai.vercel.app'
+}));
+
 app.use(cors(corsOptions));
 
 app.use(express.json());

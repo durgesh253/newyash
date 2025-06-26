@@ -12,6 +12,8 @@ import { Loader2 } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
 
+const API = process.env.REACT_APP_API_URL || 'http://localhost:3003';
+
 type FormStep = 'initial' | 'personalization' | 'calling' | 'report';
 
 interface CallReport {
@@ -72,7 +74,7 @@ const DemoForm = () => {
     if (callData?.call?.call_id && currentStep === 'calling') {
       const pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3003/api/call-report/${callData.call.call_id}`);
+          const response = await fetch(`${API}/api/call-report/${callData.call.call_id}`);
           if (response.ok) {
             const reportData = await response.json();
             if (reportData.success && reportData.report) {
@@ -163,7 +165,7 @@ const DemoForm = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3003/api/demo-call', {
+      const response = await fetch(`${API}/api/demo-call`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +219,7 @@ const DemoForm = () => {
 
     setSendingEmail(true);
     try {
-      const response = await fetch('http://localhost:3003/api/send-call-report-email', {
+      const response = await fetch(`${API}/api/send-call-report-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
