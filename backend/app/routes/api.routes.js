@@ -145,6 +145,7 @@ const validate = validations => {
     app.post('/api/demo-call', demoController.makeDemoCall);
     app.get('/api/demo-call-stats', demoController.getDemoCallStats);
     app.get('/api/call-report/:call_id', demoController.getCallReport);
+    app.post('/api/send-call-report-email', demoController.sendCallReportEmail);
 
 
     app.get('/api/orders/:orderId', shopifyController.getOrder);

@@ -1,5 +1,6 @@
 const getClient = require("../config/retell");
 const { demo_global_prompt } = require("../constant/index");
+const { createTransporter, createCallReportEmail } = require("../config/nodemailer.config");
 const axios = require("axios");
 const { db } = require("../models");
 const Call = db.call;
@@ -89,7 +90,12 @@ exports.getCallReport = async (req, res) => {
         start_time: callDetails.start_timestamp,
         end_time: callDetails.end_timestamp,
         from_number: callDetails.from_number,
-        to_number: callDetails.to_number
+        to_number: callDetails.to_number,
+        caller_name: callRecord?.caller_name || demoData.caller_name,
+        caller_email: callRecord?.caller_email || demoData.caller_email,
+        language: callRecord?.language || demoData.language,
+        accent: callRecord?.accent || demoData.accent,
+        voice_type: callRecord?.voice_type || demoData.voice_type
       }
     });
 
@@ -185,6 +191,11 @@ exports.makeDemoCall = async (req, res) => {
     // Save call information to database
     await Call.create({
       user_id: null, // Demo calls don't have a specific user
+      caller_name: caller_name,
+      caller_email: caller_email,
+      language: language,
+      accent: accent,
+      voice_type: voice_type,
       office_id: null,
       retell_key: `demo_${Date.now()}`, // Generate a unique demo key
       call_id: phoneCallResponse?.call_id,
@@ -321,8 +332,8 @@ Do NOT fabricate missing data. If a value is not present, return null.`,
       follow_up_requested: extractedData?.follow_up_requested,
       demo_key: callDetail?.retell_key,
       call_id: callDetail?.call_id,
-      caller_name: demoData?.caller_name,
-      caller_email: demoData?.caller_email,
+      caller_name: callDetail?.caller_name || demoData?.caller_name,
+      caller_email: callDetail?.caller_email || demoData?.caller_email,
       recording_url: callResponses?.recording_url,
       transcript: callResponses?.transcript,
       call_duration: callResponses?.call_duration,
@@ -359,8 +370,8 @@ exports.getDemoCallStats = async (req, res) => {
       recent_calls: demoCalls.slice(0, 10).map(call => ({
         id: call.id,
         call_id: call.call_id,
-        caller_name: JSON.parse(call.demo_data || '{}').caller_name,
-        caller_email: JSON.parse(call.demo_data || '{}').caller_email,
+        caller_name: call.caller_name || JSON.parse(call.demo_data || '{}').caller_name,
+        caller_email: call.caller_email || JSON.parse(call.demo_data || '{}').caller_email,
         call_status: call.call_status,
         created_at: call.createdAt
       }))
@@ -376,5 +387,120 @@ exports.getDemoCallStats = async (req, res) => {
       error: "Failed to fetch demo call statistics",
       message: error.message,
     });
+  }
+};
+
+/**
+ * Send call report via email
+ */
+exports.sendCallReportEmail = async (req, res) => {
+  try {
+    const { call_id, user_email, user_name } = req.body;
+
+    if (!call_id || !user_email) {
+      return res.status(400).json({ 
+        error: "Call ID and user email are required" 
+      });
+    }
+
+    // Get call report data first
+    const client = await getClient();
+    const callDetails = await client.call.retrieve(call_id);
+
+    if (!callDetails) {
+      return res.status(404).json({ error: "Call not found" });
+    }
+
+    // Get call record from database to get caller information
+    const callRecord = await Call.findOne({
+      where: { call_id: call_id }
+    });
+
+    let demoData = {};
+    if (callRecord && callRecord.demo_data) {
+      demoData = JSON.parse(callRecord.demo_data);
+    }
+
+    // Calculate call duration
+    let callDuration = 0;
+    if (callDetails.start_timestamp && callDetails.end_timestamp) {
+      callDuration = Math.floor((callDetails.end_timestamp - callDetails.start_timestamp) / 1000);
+    } else if (callDetails.call_duration) {
+      callDuration = callDetails.call_duration;
+    }
+
+    // Prepare call report data with caller information
+    const callReport = {
+      call_id: callDetails.call_id,
+      call_status: callDetails.call_status,
+      call_duration: callDuration,
+      recording_url: callDetails.recording_url,
+      transcript: callDetails.transcript,
+      summary: callDetails.call_analysis?.call_summary,
+      sentiment: callDetails.call_analysis?.sentiment,
+      key_topics: callDetails.call_analysis?.key_topics,
+      engagement_level: callDetails.call_analysis?.engagement_level,
+      start_time: callDetails.start_timestamp,
+      end_time: callDetails.end_timestamp,
+      from_number: callDetails.from_number,
+      to_number: callDetails.to_number,
+      caller_name: callRecord?.caller_name || demoData.caller_name,
+      caller_email: callRecord?.caller_email || demoData.caller_email,
+      language: callRecord?.language || demoData.language,
+      accent: callRecord?.accent || demoData.accent,
+      voice_type: callRecord?.voice_type || demoData.voice_type
+    };
+
+    // Send email
+    const emailResult = await sendCallReportEmail(callReport, user_email, user_name);
+
+    if (emailResult.success) {
+      res.status(200).json({
+        success: true,
+        message: "Call report email sent successfully",
+        messageId: emailResult.messageId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: "Failed to send email",
+        message: emailResult.error
+      });
+    }
+
+  } catch (error) {
+    console.error("Error sending call report email:", error);
+    res.status(500).json({
+      error: "Failed to send call report email",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Send call report via email
+ */
+const sendCallReportEmail = async (callReport, userEmail, userName) => {
+  try {
+    const transporter = createTransporter();
+    const emailContent = createCallReportEmail(callReport, { email: userEmail, name: userName });
+
+    const mailOptions = {
+      from: {
+        name: process.env.SMTP_FROM_NAME || "LeadReachAi Demo",
+        address: process.env.SMTP_FROM_EMAIL || "demo@leadreachai.com"
+      },
+      to: userEmail,
+      subject: `🎯 LeadReachAi Demo Call Report - ${callReport.call_id}`,
+      text: emailContent.text,
+      html: emailContent.html
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log("Call report email sent successfully:", result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error("Error sending call report email:", error);
+    return { success: false, error: error.message };
   }
 }; 

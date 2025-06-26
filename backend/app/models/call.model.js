@@ -1,6 +1,11 @@
 module.exports = (sequelize, Sequelize) => {
     const Call = sequelize.define("callhistories", {
         user_id: { type: Sequelize.NUMBER },
+        caller_name: { type: Sequelize.STRING },
+        caller_email: { type: Sequelize.STRING },
+        language: { type: Sequelize.STRING },
+        accent: { type: Sequelize.STRING },
+        voice_type: { type: Sequelize.STRING },
         office_id: { type: Sequelize.NUMBER },
         retell_key: { type: Sequelize.STRING },
         call_id: { type: Sequelize.STRING },
