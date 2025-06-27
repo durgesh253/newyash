@@ -21,18 +21,22 @@ app.use(express.raw({ type: 'application/pdf', limit: '50mb' }));
 app.use(bodyParser.urlencoded({limit: "50mb", extended: true, parameterLimit:50000}));
 const moment = require("moment");
 
+
 var corsOptions = {
-  origin: "*",
+  origin: [
+    'https://lead-reach-ai.vercel.app',
+    'https://leadreachai-2.onrender.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173', // Vite dev server
+    'http://127.0.0.1:5173'  // Vite dev server
+  ],
+  credentials: true
 };
 
-app.use(cors({
-  origin: 'https://lead-reach-ai.vercel.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
-
+// Remove the first cors configuration and keep only this:
 app.use(cors(corsOptions));
+
 
 app.use(express.json());
 
@@ -44,8 +48,18 @@ app.engine("html", require("ejs").renderFile);
 app.set("view engine", "ejs");
 app.use(express.static(__dirname + "/app/views/assets"))
 app.set("views",__dirname +"/app/views");
+
+// Health check endpoint for production
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    message: "LeadReach AI Backend is running",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.get("/", (req, res) => {
-  
   return res.render("index");
 });
 
@@ -72,8 +86,8 @@ app.get("/test", (req, res) => {
 
 
 // Environment variables
-const OPENPHONE_API_KEY = 'UVjItR2HUMjCyo7q5uwhsmAmghGAGg1Z';
-const DEFAULT_OPENPHONE_NUMBER = '+919054760377';
+const OPENPHONE_API_KEY = process.env.OPENPHONE_API_KEY || 'UVjItR2HUMjCyo7q5uwhsmAmghGAGg1Z';
+const DEFAULT_OPENPHONE_NUMBER = process.env.DEFAULT_OPENPHONE_NUMBER || '+919054760377';
 
 // OpenPhone API endpoint
 const OPENPHONE_API_URL = 'https://api.openphone.com/v1/messages';

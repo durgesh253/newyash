@@ -11,8 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
-
-const API = process.env.REACT_APP_API_URL || 'https://leadreachai-2.onrender.com';
+import { API_ENDPOINTS } from '@/config/api';
 
 type FormStep = 'initial' | 'personalization' | 'calling' | 'report';
 
@@ -74,7 +73,7 @@ const DemoForm = () => {
     if (callData?.call?.call_id && currentStep === 'calling') {
       const pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(`${API}/api/call-report/${callData.call.call_id}`);
+          const response = await fetch(API_ENDPOINTS.CALL_REPORT(callData.call.call_id));
           if (response.ok) {
             const reportData = await response.json();
             if (reportData.success && reportData.report) {
@@ -165,7 +164,7 @@ const DemoForm = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API}/api/demo-call`, {
+      const response = await fetch(API_ENDPOINTS.DEMO_CALL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +218,7 @@ const DemoForm = () => {
 
     setSendingEmail(true);
     try {
-      const response = await fetch(`${API}/api/send-call-report-email`, {
+      const response = await fetch(API_ENDPOINTS.SEND_EMAIL_REPORT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
