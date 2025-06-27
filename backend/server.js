@@ -26,7 +26,7 @@ var corsOptions = {
 };
 
 app.use(cors({
-  origin: '*',
+  origin: 'https://lead-reach-ai.vercel.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
