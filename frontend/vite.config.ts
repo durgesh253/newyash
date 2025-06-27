@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://leadreachai.onrender.com',
+        target: 'https://leadreachai-2.onrender.com',
         changeOrigin: true,
         secure: false,
       },

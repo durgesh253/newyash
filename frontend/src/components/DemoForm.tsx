@@ -12,7 +12,7 @@ import { Loader2 } from 'lucide-react';
 import { Mail } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
 
-const API = process.env.REACT_APP_API_URL || 'https://leadreachai.onrender.com';
+const API = process.env.REACT_APP_API_URL || 'https://leadreachai-2.onrender.com';
 
 type FormStep = 'initial' | 'personalization' | 'calling' | 'report';
 
