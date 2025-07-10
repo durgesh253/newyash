@@ -2,7 +2,7 @@
 const axios = require('axios');
 
 const SHOP_NAME = process.env.SHOP_NAME || 'xqtfk8-06';
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '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';
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const API_VERSION = '2024-04';
 const SHOP_URL = `https://${SHOP_NAME}.myshopify.com`;
 const HEADERS = {
