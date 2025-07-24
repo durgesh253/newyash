@@ -14,6 +14,7 @@ const  {makecallCron, callAnalisysCron } = require('./app/controllers/resume.con
 // const makeReservationCall = require('../controllers/reservationCallController');
 
 const { reservationCallAnalysisCron } = require('./app/controllers/reservation.controller')
+const { processCompletedDemoCalls } = require('./app/controllers/demo.controller');
 
 
 app.use(bodyParser.json({limit: '50mb'}));
@@ -26,7 +27,9 @@ var corsOptions = {
   origin: [
     'https://lead-reach-ai.vercel.app',
     'http://localhost:3000',
-    'http://127.0.0.1:3000'
+    'http://127.0.0.1:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
   ],
   credentials: true
 };
@@ -64,6 +67,11 @@ cron.schedule('*/7 * * * *', async () => {
 cron.schedule('*/8 * * * *', async () => {
   // callAnalisysCron();
  // console.log({ message: "Welcome to Harm AI API." });
+});
+
+// Process completed demo calls and send SMS every 2 minutes
+cron.schedule('*/2 * * * *', async () => {
+  await processCompletedDemoCalls();
 });
 app.get("/test", (req, res) => {
   //callAnalisysCron();

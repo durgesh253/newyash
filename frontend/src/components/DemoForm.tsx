@@ -398,10 +398,10 @@ const DemoForm = () => {
       </div>
       <h2 className="text-2xl font-bold">We're Calling You Now!</h2>
       <p className="text-gray-600">We're calling you from this number:</p>
-      <p className="text-xl font-semibold">+1 (352) 839-6109</p>
+      <p className="text-xl font-semibold">{callData.call?.from_number}</p>
       {callData && (
         <div className="bg-green-100 p-4 rounded-lg">
-          <p className="text-green-800">Call ID: {callData.call?.call_id}</p>
+          {/* <p className="text-green-800">Call ID: {callData.call?.call_id}</p> */}
           <p className="text-green-800">Status: {callData.call?.call_status}</p>
         </div>
       )}

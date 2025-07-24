@@ -18,6 +18,8 @@ module.exports = (sequelize, Sequelize) => {
         direction: { type: Sequelize.STRING },
         call_use: { type: Sequelize.STRING },
         next_schedual: { type: Sequelize.STRING },
+        demo_data: { type: Sequelize.TEXT },
+        sms_sent: { type: Sequelize.BOOLEAN, defaultValue: false },
         status: {
             type: Sequelize.NUMBER,
         }

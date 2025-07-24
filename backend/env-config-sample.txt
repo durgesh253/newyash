@@ -27,10 +27,12 @@ NODE_ENV=development
 # JWT Secret (for authentication)
 JWT_SECRET=your_jwt_secret_key_here
 
+# Twilio Configuration (for SMS notifications)
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_PHONE_NUMBER=+18568807438
+
 # Other API Keys (if needed)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
 # Shopify Configuration (if using)
 SHOPIFY_SHOP_NAME=your_shop_name
