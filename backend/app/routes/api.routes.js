@@ -145,7 +145,6 @@ const validate = validations => {
     app.post('/api/demo-call', demoController.makeDemoCall);
     app.get('/api/demo-call-stats', demoController.getDemoCallStats);
     app.get('/api/call-report/:call_id', demoController.getCallReport);
-    app.post('/api/send-call-report-email', demoController.sendCallReportEmail);
     app.post('/api/send-call-summary-sms/:call_id', demoController.sendCallSummarySMS);
     app.post('/api/send-demo-call-sms/:call_id', demoController.sendDemoCallSMS);
     app.post('/api/test-sms/:call_id', demoController.testSMSForCall);

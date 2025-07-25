@@ -48,6 +48,7 @@ exports.getCallReport = async (req, res) => {
     if (callDetails.recording_url) {
       recordingUrl = callDetails.recording_url;
     }
+ 
 
     // Get call transcript
     const transcript = callDetails.transcript || [];
@@ -105,22 +106,61 @@ exports.getCallReport = async (req, res) => {
     };
 
     // Send SMS summary if call is completed and it's a demo call and SMS hasn't been sent yet
-    if (callDetails.call_status === 'ended' && demoData.demo_call && !callRecord.sms_sent) {
-      console.log("Call completed, attempting to send SMS summary...");
-      try {
-        const smsResult = await sendDemoCallSummarySMS(callReportData, callDetails.to_number);
-        if (smsResult.success) {
-          // Update the database to mark SMS as sent
-          await Call.update(
-            { sms_sent: true },
-            { where: { call_id: call_id } }
-          );
-          console.log("✅ SMS summary sent successfully for call:", call_id);
-        } else {
-          console.error("❌ Failed to send SMS summary:", smsResult.error);
+    if (callDetails.call_status === 'ended' && demoData.demo_call) {
+      console.log("Call completed, attempting to send SMS and Email...");
+
+      // Send SMS if not already sent
+      if (!callRecord.sms_sent) {
+        try {
+          const smsResult = await sendDemoCallSummarySMS(callReportData, callDetails.to_number);
+          if (smsResult.success) {
+            // Update the database to mark SMS as sent
+            await Call.update(
+              { sms_sent: true },
+              { where: { call_id: call_id } }
+            );
+            console.log("✅ SMS summary sent successfully for call:", call_id);
+          } else {
+            console.error("❌ Failed to send SMS summary:", smsResult.error);
+          }
+        } catch (smsError) {
+          console.error("❌ Error sending SMS summary:", smsError);
         }
-      } catch (smsError) {
-        console.error("❌ Error sending SMS summary:", smsError);
+      } else {
+        console.log("SMS already sent for this call");
+      }
+
+
+      // Send Email automatically if not already sent
+      if (!callRecord.sms_sent && callReportData.caller_email) {
+        try {
+          const emailResult = await sendCallReportEmail(
+            callReportData,
+            callReportData.caller_email,
+            callReportData.caller_name || 'Demo User'
+          );
+
+          if (emailResult.success) {
+            // Update the database to mark email as sent
+            await Call.update(
+              { email_sent: true },
+              { where: { call_id: call_id } }
+            );
+            console.log("✅ Email report sent successfully for call:", call_id);
+            console.log("📧 Email sent to:", callReportData.caller_email);
+          } else {
+            console.error("❌ Failed to send email report:", emailResult.error);
+          }
+        } catch (emailError) {
+          console.error("❌ Error sending email report:", emailError);
+        }
+      } else {
+        if (callRecord.email_sent) {
+          console.log("Email already sent for this call");
+        } else if (!callReportData.caller_email) {
+          console.log("Email not sent - No caller email available");
+        }
+
       }
     } else {
       if (callDetails.call_status !== 'ended') {
@@ -281,10 +321,10 @@ exports.makeDemoCall = async (req, res) => {
 exports.processCompletedDemoCalls = async () => {
   try {
     console.log("Processing completed demo calls...");
-    
+
     // Find completed demo calls that haven't been processed for SMS
     const completedCalls = await Call.findAll({
-      where: { 
+      where: {
         call_status: 'ended',
         sms_sent: false,
         demo_data: {
@@ -329,7 +369,7 @@ exports.processCompletedDemoCalls = async () => {
 
         // Send SMS
         const smsResult = await sendDemoCallSummarySMS(callData, callDetails.to_number);
-        
+
         if (smsResult.success) {
           // Update the database to mark SMS as sent
           await Call.update(
@@ -360,8 +400,8 @@ exports.demoCallAnalysisCron = async () => {
 
     // Find ended demo calls that need processing
     const callDetail = await Call.findOne({
-      where: { 
-        call_status: 'ended', 
+      where: {
+        call_status: 'ended',
         status: 3,
         demo_data: {
           [db.Sequelize.Op.like]: '%"demo_call":true%'
@@ -527,9 +567,9 @@ exports.sendDemoCallSMS = async (req, res) => {
 
     // Check if SMS has already been sent for this call
     if (callRecord.sms_sent) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "SMS has already been sent for this call",
-        message: "This call has already received an SMS summary" 
+        message: "This call has already received an SMS summary"
       });
     }
 
@@ -606,7 +646,7 @@ Do NOT fabricate missing data. If a value is not present, return null.`,
         { sms_sent: true },
         { where: { call_id: call_id } }
       );
-      
+
       res.status(200).json({
         success: true,
         message: "SMS sent successfully",
@@ -632,89 +672,10 @@ Do NOT fabricate missing data. If a value is not present, return null.`,
 /**
  * Send call report via email
  */
-exports.sendCallReportEmail = async (req, res) => {
-  try {
-    const { call_id, user_email, user_name } = req.body;
+/**
+ * Send call report via email (DEPRECATED - Emails are now sent automatically)
+ */
 
-    if (!call_id || !user_email) {
-      return res.status(400).json({ 
-        error: "Call ID and user email are required" 
-      });
-    }
-
-    // Get call report data first
-    const client = await getClient();
-    const callDetails = await client.call.retrieve(call_id);
-
-    if (!callDetails) {
-      return res.status(404).json({ error: "Call not found" });
-    }
-
-    // Get call record from database to get caller information
-    const callRecord = await Call.findOne({
-      where: { call_id: call_id }
-    });
-
-    let demoData = {};
-    if (callRecord && callRecord.demo_data) {
-      demoData = JSON.parse(callRecord.demo_data);
-    }
-
-    // Calculate call duration
-    let callDuration = 0;
-    if (callDetails.start_timestamp && callDetails.end_timestamp) {
-      callDuration = Math.floor((callDetails.end_timestamp - callDetails.start_timestamp) / 1000);
-    } else if (callDetails.call_duration) {
-      callDuration = callDetails.call_duration;
-    }
-
-    // Prepare call report data with caller information
-    const callReport = {
-      call_id: callDetails.call_id,
-      call_status: callDetails.call_status,
-      call_duration: callDuration,
-      recording_url: callDetails.recording_url,
-      transcript: callDetails.transcript,
-      summary: callDetails.call_analysis?.call_summary,
-      sentiment: callDetails.call_analysis?.sentiment,
-      key_topics: callDetails.call_analysis?.key_topics,
-      engagement_level: callDetails.call_analysis?.engagement_level,
-      start_time: callDetails.start_timestamp,
-      end_time: callDetails.end_timestamp,
-      from_number: callDetails.from_number,
-      to_number: callDetails.to_number,
-      caller_name: callRecord?.caller_name || demoData.caller_name,
-      caller_email: callRecord?.caller_email || demoData.caller_email,
-      language: callRecord?.language || demoData.language,
-      accent: callRecord?.accent || demoData.accent,
-      voice_type: callRecord?.voice_type || demoData.voice_type
-    };
-
-    // Send email
-    const emailResult = await sendCallReportEmail(callReport, user_email, user_name);
-
-    if (emailResult.success) {
-      res.status(200).json({
-        success: true,
-        message: "Call report email sent successfully",
-        messageId: emailResult.messageId
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        error: "Failed to send email",
-        message: emailResult.error
-      });
-    }
-
-  } catch (error) {
-    console.error("Error sending call report email:", error);
-    res.status(500).json({
-      error: "Failed to send call report email",
-      message: error.message,
-    });
-  }
-};
 
 /**
  * Send SMS with demo call summary
@@ -728,25 +689,25 @@ const sendDemoCallSummarySMS = async (callData, toNumber) => {
     }
 
     // Format call duration
-    const duration = callData.call_duration ? 
-      Math.floor(callData.call_duration / 60) + 'm ' + (callData.call_duration % 60) + 's' : 
+    const duration = callData.call_duration ?
+      Math.floor(callData.call_duration / 60) + 'm ' + (callData.call_duration % 60) + 's' :
       'Unknown';
 
     // Create SMS message content
     let messageBody = `🎯 LeadReachAi Demo Call Summary\n\n`;
     messageBody += `Hi ${callData.caller_name || 'there'}!\n\n`;
     messageBody += `Your demo call has been completed.\n`;
-   
-    
+
+
     if (callData.summary) {
       // Truncate summary if too long (SMS has 1600 character limit)
-      const summary = callData.summary.length > 150 ? 
-        callData.summary.substring(0, 150) + '...' : 
+      const summary = callData.summary.length > 150 ?
+        callData.summary.substring(0, 150) + '...' :
         callData.summary;
       messageBody += `Summary: ${summary}\n\n`;
     }
     console.log("callData.summary", callData.summary);
-    
+
     if (callData.sentiment) {
       messageBody += `Sentiment: ${callData.sentiment}\n`;
     }
@@ -754,7 +715,7 @@ const sendDemoCallSummarySMS = async (callData, toNumber) => {
     if (callData.interested !== undefined && callData.interested !== null) {
       messageBody += `Interest: ${callData.interested ? '✅ Yes' : '❌ No'}\n`;
     }
-    
+
     if (callData.business_type) {
       messageBody += `Business: ${callData.business_type}\n`;
     }
@@ -763,9 +724,15 @@ const sendDemoCallSummarySMS = async (callData, toNumber) => {
       messageBody += `\n📞 Follow-up requested!\n`;
     }
     console.log("callData.follow_up_requested", callData.follow_up_requested);
-    
+
     messageBody += `\nThank you for trying LeadReachAi!`;
-    messageBody += `\n\nDetailed report sent to your email.`;
+
+    // Add caller email if available
+    if (callData.caller_email) {
+      messageBody += `\n\n📧 Detailed report sent to: ${callData.caller_email}`;
+    } else {
+      messageBody += `\n\n📧 Detailed report sent to your email.`;
+    }
 
     // Send SMS using Twilio
     const message = await twilioClient.messages.create({
@@ -816,9 +783,9 @@ exports.testSMSForCall = async (req, res) => {
 
     // Check if SMS has already been sent for this call
     if (callRecord.sms_sent) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "SMS has already been sent for this call",
-        message: "This call has already received an SMS summary" 
+        message: "This call has already received an SMS summary"
       });
     }
 
@@ -838,6 +805,7 @@ exports.testSMSForCall = async (req, res) => {
       business_type: demoData.business_type,
       follow_up_requested: demoData.follow_up_requested,
       caller_name: callRecord.caller_name || demoData.caller_name || "Demo User",
+      caller_email: callRecord.caller_email || demoData.caller_email,
       to_number: callDetails.to_number
     };
 
@@ -852,7 +820,7 @@ exports.testSMSForCall = async (req, res) => {
         { sms_sent: true },
         { where: { call_id: call_id } }
       );
-      
+
       res.status(200).json({
         success: true,
         message: "SMS sent successfully",
@@ -907,9 +875,9 @@ exports.sendCallSummarySMS = async (req, res) => {
 
     // Check if SMS has already been sent for this call
     if (callRecord.sms_sent) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "SMS has already been sent for this call",
-        message: "This call has already received an SMS summary" 
+        message: "This call has already received an SMS summary"
       });
     }
 
@@ -929,6 +897,7 @@ exports.sendCallSummarySMS = async (req, res) => {
       business_type: demoData.business_type,
       follow_up_requested: demoData.follow_up_requested,
       caller_name: callRecord.caller_name || demoData.caller_name,
+      caller_email: callRecord.caller_email || demoData.caller_email,
       to_number: callDetails.to_number
     };
 
@@ -941,7 +910,7 @@ exports.sendCallSummarySMS = async (req, res) => {
         { sms_sent: true },
         { where: { call_id: call_id } }
       );
-      
+
       res.status(200).json({
         success: true,
         message: "SMS summary sent successfully",

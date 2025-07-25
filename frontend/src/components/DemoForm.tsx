@@ -43,8 +43,7 @@ const DemoForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [callData, setCallData] = useState<any>(null);
   const [callReport, setCallReport] = useState<CallReport | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
-  const [sendingEmail, setSendingEmail] = useState(false);
+
 
   // Form data state
   const [phone, setPhone] = useState('');
@@ -72,7 +71,7 @@ const DemoForm = () => {
     if (callData?.call?.call_id && currentStep === 'calling') {
       const pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3003/api/call-report/${callData.call.call_id}`);
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3003'}/api/call-report/${callData.call.call_id}`);
           if (response.ok) {
             const reportData = await response.json();
             if (reportData.success && reportData.report) {
@@ -163,7 +162,7 @@ const DemoForm = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3003/api/demo-call', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3003'}/api/demo-call`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,60 +201,7 @@ const DemoForm = () => {
     }
   };
 
-  const sendEmailReport = async () => {
-    const recipientEmail = callReport?.caller_email || email;
-    const recipientName = callReport?.caller_name || name;
 
-    if (!callReport || !recipientEmail) {
-      toast({
-        title: 'Error',
-        description: 'No email address available to send the report.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSendingEmail(true);
-    try {
-      const response = await fetch('http://localhost:3003/api/send-call-report-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          call_id: callReport.call_id,
-          user_email: recipientEmail,
-          user_name: recipientName || 'Demo User',
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setEmailSent(true);
-        toast({
-          title: 'Email Sent!',
-          description: `Your call report has been sent to ${recipientEmail}`,
-          variant: 'default',
-        });
-      } else {
-        toast({
-          title: 'Error',
-          description: data.message || 'Failed to send email report.',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Error sending email:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send email report. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSendingEmail(false);
-    }
-  };
 
   const formatDuration = (seconds: number) => {
     if (!seconds || seconds <= 0) return 'N/A';
@@ -486,46 +432,29 @@ const DemoForm = () => {
                 </div>
               </div>
             )}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-              <h4 className="text-lg font-medium text-blue-800 mb-3">
-                📧 Get Detailed Report via Email
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+              <h4 className="text-lg font-medium text-green-800 mb-3">
+                📧 Email Report Sent Automatically
               </h4>
               <div className="space-y-3">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <p className="text-sm text-green-700">
-                    <strong>Email will be sent to:</strong> {callReport.caller_email || email}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm text-blue-700">
+                    <strong>✅ Email sent to:</strong> {callReport.caller_email || email}
                   </p>
-                  <p className="text-sm text-green-700">
+                  <p className="text-sm text-blue-700">
                     <strong>Name:</strong> {callReport.caller_name || name}
                   </p>
                 </div>
-                <Button
-                  onClick={sendEmailReport}
-                  disabled={sendingEmail || emailSent}
-                  className="w-full"
-                >
-                  {sendingEmail ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending Report...
-                    </>
-                  ) : emailSent ? (
-                    <>
-                      <FaCheck className="mr-2 h-4 w-4" />
-                      Report Sent!
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="mr-2 h-4 w-4" />
-                      Send Detailed Report to Email
-                    </>
-                  )}
-                </Button>
-                {emailSent && (
-                  <p className="text-sm text-green-600 text-center">
-                    ✅ Detailed report sent successfully! Check your email inbox.
+                <div className="text-center">
+                  <div className="flex items-center justify-center text-green-600 mb-2">
+                    <FaCheck className="mr-2 h-4 w-4" />
+                    <span className="text-sm font-medium">Email Report Delivered</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    Your detailed call report has been automatically sent to your email inbox.
+                    Please check your spam folder if you don't see it.
                   </p>
-                )}
+                </div>
               </div>
             </div>
           </div>
