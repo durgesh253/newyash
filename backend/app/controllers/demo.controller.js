@@ -935,29 +935,33 @@ exports.sendCallSummarySMS = async (req, res) => {
 };
 
 /**
- * Send call report via email
+ * Send call report via email using Resend API
  */
 const sendCallReportEmail = async (callReport, userEmail, userName) => {
   try {
-    const transporter = createTransporter();
+    // Use Resend API instead of SMTP
     const emailContent = createCallReportEmail(callReport, { email: userEmail, name: userName });
-
-    const mailOptions = {
-      from: {
-        name: process.env.SMTP_FROM_NAME || "LeadReachAi Demo",
-        address: process.env.SMTP_FROM_EMAIL || "demo@leadreachai.com"
-      },
-      to: userEmail,
+    
+    const resendData = {
+      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      to: [userEmail],
       subject: `🎯 LeadReachAi Demo Call Report - ${callReport.call_id}`,
-      text: emailContent.text,
-      html: emailContent.html
+      html: emailContent.html,
+      text: emailContent.text
     };
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log("Call report email sent successfully:", result.messageId);
-    return { success: true, messageId: result.messageId };
+    const response = await axios.post('https://api.resend.com/emails', resendData, {
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000 // 30 second timeout
+    });
+
+    console.log("Call report email sent successfully via Resend:", response.data.id);
+    return { success: true, messageId: response.data.id, resendId: response.data.id };
   } catch (error) {
-    console.error("Error sending call report email:", error);
-    return { success: false, error: error.message };
+    console.error("Error sending call report email:", error.response?.data || error.message);
+    return { success: false, error: error.response?.data?.message || error.message };
   }
 }; 
