@@ -20,6 +20,7 @@ module.exports = (sequelize, Sequelize) => {
         next_schedual: { type: Sequelize.STRING },
         demo_data: { type: Sequelize.TEXT },
         sms_sent: { type: Sequelize.BOOLEAN, defaultValue: false },
+        email_sent: { type: Sequelize.BOOLEAN, defaultValue: false }, 
         status: {
             type: Sequelize.NUMBER,
         }

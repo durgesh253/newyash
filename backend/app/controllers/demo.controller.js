@@ -132,7 +132,7 @@ exports.getCallReport = async (req, res) => {
 
 
       // Send Email automatically if not already sent
-      if (!callRecord.sms_sent && callReportData.caller_email) {
+      if (!callRecord.email_sent && callReportData.caller_email) {
         try {
           const emailResult = await sendCallReportEmail(
             callReportData,
@@ -144,7 +144,7 @@ exports.getCallReport = async (req, res) => {
             // Update the database to mark email as sent
             await Call.update(
               { email_sent: true },
-              { where: { call_id: call_id } }
+              { where: { call_id: call_id, email_sent: false } }
             );
             console.log("✅ Email report sent successfully for call:", call_id);
             console.log("📧 Email sent to:", callReportData.caller_email);
@@ -327,6 +327,7 @@ exports.processCompletedDemoCalls = async () => {
       where: {
         call_status: 'ended',
         sms_sent: false,
+        email_sent: false,
         demo_data: {
           [db.Sequelize.Op.like]: '%"demo_call":true%'
         }
@@ -699,13 +700,13 @@ const sendDemoCallSummarySMS = async (callData, toNumber) => {
     messageBody += `Your demo call has been completed.\n`;
 
 
-    if (callData.summary) {
-      // Truncate summary if too long (SMS has 1600 character limit)
-      const summary = callData.summary.length > 150 ?
-        callData.summary.substring(0, 150) + '...' :
-        callData.summary;
-      messageBody += `Summary: ${summary}\n\n`;
-    }
+    // if (callData.summary) {
+    //   // Truncate summary if too long (SMS has 1600 character limit)
+    //   const summary = callData.summary.length > 150 ?
+    //     callData.summary.substring(0, 150) + '...' :
+    //     callData.summary;
+    //   messageBody += `Summary: ${summary}\n\n`;
+    // }
     console.log("callData.summary", callData.summary);
 
     if (callData.sentiment) {

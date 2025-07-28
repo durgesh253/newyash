@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import PhoneInput from 'react-phone-input-2';
@@ -9,10 +9,18 @@ import { ImMagicWand } from 'react-icons/im';
 import { FaCheck } from 'react-icons/fa';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Mail } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
 
 type FormStep = 'initial' | 'personalization' | 'calling' | 'report';
+
+interface CallData {
+  call: {
+    call_id: string;
+    call_status: string;
+    from_number: string;
+  };
+  success: boolean;
+}
 
 interface CallReport {
   call_id: string;
@@ -21,13 +29,6 @@ interface CallReport {
   recording_url?: string;
   transcript?: string;
   summary?: string;
-  sentiment?: string;
-  key_topics?: string;
-  engagement_level?: string;
-  interested?: boolean;
-  business_type?: string;
-  pain_points?: string;
-  follow_up_requested?: boolean;
   start_time?: number;
   end_time?: number;
   from_number?: string;
@@ -41,9 +42,10 @@ const DemoForm = () => {
   const [currentStep, setCurrentStep] = useState<FormStep>('initial');
   const [tcpaModalOpen, setTcpaModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [callData, setCallData] = useState<any>(null);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingStatus, setPollingStatus] = useState('');
+  const [callData, setCallData] = useState<CallData | null>(null);
   const [callReport, setCallReport] = useState<CallReport | null>(null);
-
 
   // Form data state
   const [phone, setPhone] = useState('');
@@ -66,50 +68,143 @@ const DemoForm = () => {
     }
   }, [currentStep]);
 
-  // Poll for call status and report
+  // Poll for call status and report - OPTIMIZED WITH EXPONENTIAL BACKOFF
+  // Alternative: Consider WebSocket connection for real-time updates from Retell
+  // This would eliminate polling entirely and provide instant status updates
   useEffect(() => {
     if (callData?.call?.call_id && currentStep === 'calling') {
-      const pollInterval = setInterval(async () => {
+      let pollTimeout: NodeJS.Timeout;
+      let timeoutId: NodeJS.Timeout;
+      let retryCount = 0;
+      const maxRetries = 25;
+      const baseDelay = 2000; // Start with 2 seconds
+
+      const getPollingDelay = (callStatus: string, retryCount: number) => {
+        // Different delays based on call status
+        switch (callStatus) {
+          case 'registered':
+          case 'ongoing':
+            // More frequent polling for active calls
+            return Math.min(baseDelay * Math.pow(1.2, retryCount), 10000); // Max 10 seconds
+          case 'connecting':
+          case 'ringing':
+            // Medium frequency for connecting calls
+            return Math.min(baseDelay * Math.pow(1.5, retryCount), 15000); // Max 15 seconds
+          default:
+            // Slower polling for other states
+            return Math.min(baseDelay * Math.pow(2, retryCount), 30000); // Max 30 seconds
+        }
+      };
+
+      const pollCallStatus = async () => {
         try {
+          setPollingStatus(`Checking call status... (Attempt ${retryCount + 1}/${maxRetries})`);
           const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3003'}/api/call-report/${callData.call.call_id}`);
+          
           if (response.ok) {
             const reportData = await response.json();
             if (reportData.success && reportData.report) {
-              if (reportData.report.call_status === 'ended' || reportData.report.call_status === 'completed') {
-                setCallReport(reportData.report);
+              const callStatus = reportData.report.call_status;
+              setPollingStatus(`Call status: ${callStatus}`);
+              
+              // Stop polling for terminal states
+              if (callStatus === 'ended' || callStatus === 'completed' || callStatus === 'failed') {
+                clearTimeout(timeoutId);
+                setIsPolling(false);
+                setPollingStatus('');
+                
+                if (callStatus === 'failed') {
+                  setCallReport({
+                    call_id: reportData.report.call_id,
+                    call_status: 'failed',
+                    call_duration: 0,
+                    transcript: 'Call failed to complete',
+                  });
+                } else {
+                  setCallReport(reportData.report);
+                }
                 setCurrentStep('report');
-                clearInterval(pollInterval);
-              } else if (reportData.report.call_status === 'failed') {
+                return;
+              }
+              
+              // Continue polling with adaptive delay
+              if (retryCount < maxRetries) {
+                retryCount++;
+                const delay = getPollingDelay(callStatus, retryCount);
+                pollTimeout = setTimeout(pollCallStatus, delay);
+              } else {
+                // Max retries reached, show timeout
+                clearTimeout(timeoutId);
+                setIsPolling(false);
+                setPollingStatus('');
                 setCallReport({
-                  call_id: reportData.report.call_id,
-                  call_status: 'failed',
+                  call_id: callData.call.call_id,
+                  call_status: 'timeout',
                   call_duration: 0,
-                  transcript: 'Call failed to complete',
+                  transcript: 'Call may still be in progress. Please check back later.',
                 });
                 setCurrentStep('report');
-                clearInterval(pollInterval);
               }
+            } else {
+              // Invalid response, retry with exponential backoff
+              if (retryCount < maxRetries) {
+                retryCount++;
+                const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+                pollTimeout = setTimeout(pollCallStatus, delay);
+              }
+            }
+          } else {
+            console.error('Failed to fetch call report:', response.status, response.statusText);
+            setPollingStatus(`Error: ${response.status} - Retrying...`);
+            // Retry on error with exponential backoff
+            if (retryCount < maxRetries) {
+              retryCount++;
+              const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+              pollTimeout = setTimeout(pollCallStatus, delay);
             }
           }
         } catch (error) {
           console.error('Error polling call status:', error);
+          setPollingStatus('Connection error - Retrying...');
+          // Retry on error with exponential backoff
+          if (retryCount < maxRetries) {
+            retryCount++;
+            const delay = Math.min(baseDelay * Math.pow(2, retryCount), 30000);
+            pollTimeout = setTimeout(pollCallStatus, delay);
+          }
         }
-      }, 3000);
+      };
 
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (currentStep === 'calling') {
-          setCallReport({
-            call_id: callData.call.call_id,
-            call_status: 'timeout',
-            call_duration: 0,
-            transcript: 'Call may still be in progress. Please check back later.',
-          });
-          setCurrentStep('report');
-        }
-      }, 300000);
+      const startPolling = () => {
+        setIsPolling(true);
+        retryCount = 0;
+        pollTimeout = setTimeout(pollCallStatus, baseDelay);
 
-      return () => clearInterval(pollInterval);
+        // Set timeout to stop polling after 5 minutes
+        timeoutId = setTimeout(() => {
+          if (pollTimeout) clearTimeout(pollTimeout);
+          setIsPolling(false);
+          if (currentStep === 'calling') {
+            setCallReport({
+              call_id: callData.call.call_id,
+              call_status: 'timeout',
+              call_duration: 0,
+              transcript: 'Call may still be in progress. Please check back later.',
+            });
+            setCurrentStep('report');
+          }
+        }, 300000); // 5 minutes
+      };
+
+      startPolling();
+
+      // Cleanup function
+      return () => {
+        if (pollTimeout) clearTimeout(pollTimeout);
+        if (timeoutId) clearTimeout(timeoutId);
+        setIsPolling(false);
+        setPollingStatus('');
+      };
     }
   }, [callData, currentStep]);
 
@@ -146,7 +241,7 @@ const DemoForm = () => {
   };
 
   const handlePersonalizationSubmit = async () => {
-    // Simple validation
+    // Improved validation
     if (!name.trim()) {
       toast({ title: 'Error', description: 'Name is required', variant: 'destructive' });
       return;
@@ -155,7 +250,10 @@ const DemoForm = () => {
       toast({ title: 'Error', description: 'Email is required', variant: 'destructive' });
       return;
     }
-    if (!email.includes('@')) {
+    
+    // Better email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       toast({ title: 'Error', description: 'Please enter a valid email address', variant: 'destructive' });
       return;
     }
@@ -201,37 +299,35 @@ const DemoForm = () => {
     }
   };
 
+  // Reset functionality
+  const handleReset = useCallback(() => {
+    setCurrentStep('initial');
+    setCallData(null);
+    setCallReport(null);
+    setPhone('');
+    setName('');
+    setEmail('');
+    setLanguage('English');
+    setAccent('US');
+    setVoiceType('Female');
+    setIsPolling(false);
+    setPollingStatus('');
+  }, []);
 
-
-  const formatDuration = (seconds: number) => {
+  // Memoized utility functions
+  const formatDuration = useCallback((seconds: number) => {
     if (!seconds || seconds <= 0) return 'N/A';
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  }, []);
 
-  const formatTimestamp = (timestamp: number) => {
+  const formatTimestamp = useCallback((timestamp: number) => {
     if (!timestamp) return 'N/A';
     return new Date(timestamp).toLocaleString();
-  };
+  }, []);
 
-  const getSentimentEmoji = (sentiment: string) => {
-    switch (sentiment?.toLowerCase()) {
-      case 'positive': return '😊';
-      case 'negative': return '😞';
-      case 'neutral': return '😐';
-      default: return '📊';
-    }
-  };
 
-  const getEngagementEmoji = (level: string) => {
-    switch (level.toLowerCase()) {
-      case 'high': return '🔥';
-      case 'medium': return '👍';
-      case 'low': return '😐';
-      default: return '❓';
-    }
-  };
 
   // Render functions
   const renderInitialStep = () => (
@@ -251,6 +347,7 @@ const DemoForm = () => {
             name: 'phone',
             required: true,
             autoFocus: true,
+            'aria-label': 'Enter your phone number',
           }}
           containerStyle={{
             width: '100%',
@@ -299,6 +396,7 @@ const DemoForm = () => {
               placeholder="Name *"
               value={name}
               onInput={handleNameInput}
+              aria-label="Enter your name"
               className="w-full h-12 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
             />
           </div>
@@ -309,6 +407,7 @@ const DemoForm = () => {
               placeholder="Email *"
               value={email}
               onInput={handleEmailInput}
+              aria-label="Enter your email"
               className="w-full h-12 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
             />
           </div>
@@ -344,16 +443,21 @@ const DemoForm = () => {
       </div>
       <h2 className="text-2xl font-bold">We're Calling You Now!</h2>
       <p className="text-gray-600">We're calling you from this number:</p>
-      <p className="text-xl font-semibold">{callData.call?.from_number}</p>
+      <p className="text-xl font-semibold">{callData?.call?.from_number}</p>
       {callData && (
         <div className="bg-green-100 p-4 rounded-lg">
-          {/* <p className="text-green-800">Call ID: {callData.call?.call_id}</p> */}
           <p className="text-green-800">Status: {callData.call?.call_status}</p>
         </div>
       )}
       <div className="text-sm text-gray-500">
         <p>Waiting for call to complete...</p>
         <p>This may take a few minutes</p>
+        {isPolling && (
+          <div className="mt-2 flex items-center justify-center">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <span>{pollingStatus || 'Checking call status...'}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -368,9 +472,6 @@ const DemoForm = () => {
             <div className="space-y-1 text-sm">
               <p><strong>Duration:</strong> {callReport.call_duration ? formatDuration(callReport.call_duration) : 'N/A'}</p>
               <p><strong>Status:</strong> {callReport.call_status}</p>
-              <p><strong>Call ID:</strong> {callReport.call_id}</p>
-              {callReport.start_time && <p><strong>Start Time:</strong> {formatTimestamp(callReport.start_time)}</p>}
-              {callReport.end_time && <p><strong>End Time:</strong> {formatTimestamp(callReport.end_time)}</p>}
               {callReport.from_number && <p><strong>From:</strong> {callReport.from_number}</p>}
               {callReport.to_number && <p><strong>To:</strong> {callReport.to_number}</p>}
             </div>
@@ -412,26 +513,7 @@ const DemoForm = () => {
                 </div>
               </div>
             )}
-            {callReport.call_status === 'ended' && (
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-2">AI Insights</h3>
-                <div className="space-y-2">
-                  {callReport.sentiment && (
-                    <p>{getSentimentEmoji(callReport.sentiment)} Sentiment: {callReport.sentiment}</p>
-                  )}
-                  {callReport.key_topics && <p>💡 Key Topics: {callReport.key_topics}</p>}
-                  {callReport.engagement_level && (
-                    <p>{getEngagementEmoji(callReport.engagement_level)} Engagement Level: {callReport.engagement_level}</p>
-                  )}
-                  {callReport.interested !== undefined && (
-                    <p>🎯 Interest Level: {callReport.interested ? 'Interested' : 'Not Interested'}</p>
-                  )}
-                  {callReport.business_type && <p>🏢 Business Type: {callReport.business_type}</p>}
-                  {callReport.pain_points && <p>⚠️ Pain Points: {callReport.pain_points}</p>}
-                  {callReport.follow_up_requested && <p>📞 Follow-up Requested: Yes</p>}
-                </div>
-              </div>
-            )}
+
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
               <h4 className="text-lg font-medium text-green-800 mb-3">
                 📧 Email Report Sent Automatically
@@ -456,6 +538,15 @@ const DemoForm = () => {
                   </p>
                 </div>
               </div>
+            </div>
+            <div className="flex justify-center mt-6">
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="text-black border-gray-300 hover:bg-gray-50"
+              >
+                Try Another Demo Call
+              </Button>
             </div>
           </div>
         </>

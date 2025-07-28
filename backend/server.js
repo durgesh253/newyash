@@ -71,9 +71,9 @@ cron.schedule('*/8 * * * *', async () => {
 });
 
 // Process completed demo calls and send SMS every 2 minutes
-cron.schedule('*/2 * * * *', async () => {
-  await processCompletedDemoCalls();
-});
+// cron.schedule('*/2 * * * *', async () => {
+//   await processCompletedDemoCalls();
+// });
 app.get("/test", (req, res) => {
   //callAnalisysCron();
   res.json({ message: "Welcome to Harm AI API." });
