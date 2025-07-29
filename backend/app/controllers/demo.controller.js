@@ -943,7 +943,7 @@ const sendCallReportEmail = async (callReport, userEmail, userName) => {
     const emailContent = createCallReportEmail(callReport, { email: userEmail, name: userName });
     
     const resendData = {
-      from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+      from: process.env.RESEND_FROM_EMAIL || 'noreply@aiyug.us',
       to: [userEmail],
       subject: `🎯 LeadReachAi Demo Call Report - ${callReport.call_id}`,
       html: emailContent.html,

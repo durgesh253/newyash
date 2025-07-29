@@ -6,7 +6,7 @@ const sendEmailWithResend = async (to, subject, html, text) => {
     const response = await axios.post(
       'https://api.resend.com/emails',
       {
-        from: 'onboarding@resend.dev', // or your verified domain
+        from: 'noreply@aiyug.us', // or your verified domain
         to: [to],
         subject,
         html,

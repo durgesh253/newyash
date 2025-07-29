@@ -54,13 +54,13 @@ app.get("/", (req, res) => {
   return res.render("index");
 });
 
-cron.schedule('*/3 * * * *', async () => {
-   updateStatus();
-});
-cron.schedule('*/5 * * * *', async () => {
-  updateNextAction();
- // console.log({ message: "Welcome to Harm AI API." });
-});
+// cron.schedule('*/3 * * * *', async () => {
+//    updateStatus();
+// });
+// cron.schedule('*/5 * * * *', async () => {
+//   updateNextAction();
+//  // console.log({ message: "Welcome to Harm AI API." });
+// });
 cron.schedule('*/7 * * * *', async () => {
   // makecallCron();
  // console.log({ message: "Welcome to Harm AI API." });
