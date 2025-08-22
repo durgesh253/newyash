@@ -216,7 +216,7 @@ exports.makeDemoCall = async (req, res) => {
 
     // Initialize Retell client
     const client = await getClient();
-
+	console.log(client);
     // Get current UTC time
     const utcMoment = moment.utc();
     const currentTime = utcMoment.format();
@@ -243,15 +243,15 @@ exports.makeDemoCall = async (req, res) => {
 
     // Update agent voice if provided
     if (voice_id) {
-      await client.agent.update(override_agent_id || "agent_a6c2840665ff514332f847df7d", {
+      await client.agent.update(override_agent_id || "agent_bb3ff7d023f43e7ef665148e51", {
         voice_id: voice_id || "custom_voice_0594fccf67c9c6808d33808ca3",
       });
     }
 
     // Update the conversation flow with the populated prompt
     const payload = { global_prompt };
-    const updateUrl = `https://api.retellai.com/update-conversation-flow/conversation_flow_837f32a57cbc`;
-
+    const updateUrl = `https://api.retellai.com/update-conversation-flow/conversation_flow_a8f4c86c2142`;
+	console.log("updateurllllllllllllllllll",updateUrl);
     await axios.patch(updateUrl, payload, {  // Use PATCH instead of POST
       headers: {
         Authorization: `Bearer ${process.env.RETELL_API_KEY}`,
@@ -261,9 +261,9 @@ exports.makeDemoCall = async (req, res) => {
 
     // Make the phone call
     const phoneCallResponse = await client.call.createPhoneCall({
-      from_number: from_number || "+14153587132",
+      from_number: from_number || "+12314473510",
       to_number: to_number,
-      override_agent_id: override_agent_id || "agent_a6c2840665ff514332f847df7d",
+      override_agent_id: override_agent_id || "agent_bb3ff7d023f43e7ef665148e51",
     });
 
     // Save call information to database

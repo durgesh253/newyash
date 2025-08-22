@@ -9,7 +9,6 @@ import { ImMagicWand } from 'react-icons/im';
 import { FaCheck } from 'react-icons/fa';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
 
 type FormStep = 'initial' | 'personalization' | 'calling' | 'report';
 
@@ -232,32 +231,47 @@ const DemoForm = () => {
       });
       return;
     }
-    setTcpaModalOpen(true);
-  };
-
-  const handleTcpaAgree = () => {
-    setTcpaModalOpen(false);
     setCurrentStep('personalization');
   };
 
+
+
   const handlePersonalizationSubmit = async () => {
-    // Improved validation
+    // Validate required fields before showing consent modal
     if (!name.trim()) {
-      toast({ title: 'Error', description: 'Name is required', variant: 'destructive' });
-      return;
-    }
-    if (!email.trim()) {
-      toast({ title: 'Error', description: 'Email is required', variant: 'destructive' });
+      toast({
+        title: 'Name Required',
+        description: 'Please enter your name to proceed',
+        variant: 'destructive',
+      });
       return;
     }
     
-    // Better email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast({ title: 'Error', description: 'Please enter a valid email address', variant: 'destructive' });
+    if (!email.trim()) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email to proceed',
+        variant: 'destructive',
+      });
       return;
     }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Show consent modal - all validation passed
+    setTcpaModalOpen(true);
+  };
 
+  const initiateCall = async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3003'}/api/demo-call`, {
@@ -296,6 +310,21 @@ const DemoForm = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleConsentButtonClick = () => {
+    // Only validate consent checkbox - user has already provided name and email
+    const checkbox = document.getElementById('consent-checkbox') as HTMLInputElement;
+    if (checkbox?.checked) {
+      setTcpaModalOpen(false);
+      initiateCall();
+    } else {
+      toast({
+        title: 'Consent Required',
+        description: 'Please check the consent box to proceed',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -575,34 +604,105 @@ const DemoForm = () => {
 
   return (
     <div className="backdrop-blur-sm rounded-2xl p-8 border border-slate-700 bg-black/[0.31]">
-      <Dialog open={tcpaModalOpen} onOpenChange={setTcpaModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Terms of Service</DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center mb-4">
-            <label htmlFor="default-checkbox" className="relative flex items-center">
-              <input
-                id="default-checkbox"
-                type="checkbox"
-                onClick={handleTcpaAgree}
-                className="peer w-4 h-4 appearance-none rounded-sm bg-gray-100 border border-gray-300 checked:bg-blue-600 checked:border-transparent focus:ring-2 focus:ring-blue-500"
-              />
-              <FaCheck className="absolute left-[2px] top-[2px] text-white text-[10px] opacity-0 peer-checked:opacity-100 pointer-events-none" />
-            </label>
-            <label htmlFor="default-checkbox" className="ms-2 text-sm font-medium text-gray-900">
-              <p className="text-sm text-gray-600 leading-5">
-                By submitting your number, you agree to receive automated texts and/or
-                calls from <span className="font-medium text-gray-800">LeadReachAi.com</span>.
-                Consent isn't required to purchase. Msg & data rates may apply. Reply
-                STOP to opt out.
-              </p>
-            </label>
-          </div>
-        </DialogContent>
+      <Dialog open={tcpaModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          // If user closes modal without agreeing, go back to personalization step
+          setTcpaModalOpen(false);
+        }
+      }}>
+                 <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-xl shadow-2xl">
+           {/* Header with gradient background */}
+           <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white">
+             <div className="flex items-center space-x-3">
+               <div className="bg-white/20 p-1.5 rounded-full">
+                 <BiSolidPhoneCall className="w-5 h-5" />
+               </div>
+               <div>
+                 <DialogTitle className="text-lg font-bold">Demo Call Consent</DialogTitle>
+                 <p className="text-blue-100 text-xs mt-0.5">One step away from experiencing AI magic!</p>
+               </div>
+             </div>
+           </div>
+
+           {/* Content */}
+           <div className="p-4 space-y-4">
+             {/* User info summary */}
+             <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+               <h3 className="font-semibold text-gray-800 mb-2 flex items-center text-sm">
+                 <FaCheck className="w-3 h-3 text-green-500 mr-2" />
+                 Your Information
+               </h3>
+               <div className="space-y-1 text-xs">
+                 <div className="flex justify-between">
+                   <span className="text-gray-600">Phone:</span>
+                   <span className="font-medium text-gray-800">{phone}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span className="text-gray-600">Name:</span>
+                   <span className="font-medium text-gray-800">{name}</span>
+                 </div>
+                 <div className="flex justify-between">
+                   <span className="text-gray-600">Email:</span>
+                   <span className="font-medium text-gray-800 truncate max-w-[150px]" title={email}>{email}</span>
+                 </div>
+               </div>
+             </div>
+
+             {/* Consent section */}
+             <div className="space-y-3">
+               <div className="flex items-start space-x-3">
+                 <div className="flex-shrink-0 mt-0.5">
+                   <input
+                     id="consent-checkbox"
+                     type="checkbox"
+                     className="w-4 h-4 text-blue-600 bg-white border-2 border-blue-300 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-0"
+                   />
+                 </div>
+                 <div className="flex-1">
+                   <label htmlFor="consent-checkbox" className="text-xs text-gray-700 leading-relaxed cursor-pointer">
+                     I agree to receive an automated demo call from{' '}
+                     <span className="font-semibold text-blue-600">LeadReachAi.com</span> at the phone number I provided. 
+                     I understand this is a demo call and consent to receive automated calls and/or texts.
+                   </label>
+                   <div className="mt-2 text-xs text-gray-500 bg-blue-50 p-2 rounded border-l-2 border-blue-200">
+                     💡 This is a 5-minute demo call to showcase our AI capabilities. 
+                     Msg & data rates may apply. Reply STOP to opt out.
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+             {/* Action buttons */}
+             <div className="flex space-x-2 pt-3">
+                               <Button
+                  onClick={handleConsentButtonClick}
+                  disabled={isLoading}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                 <ImMagicWand className="w-3 h-3 mr-1.5" />
+                 Start Demo Call
+               </Button>
+               <Button
+                 variant="outline"
+                 onClick={() => {
+                   setTcpaModalOpen(false);
+                 }}
+                 className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2.5 px-4 rounded-lg transition-all duration-200 text-sm"
+               >
+                 Cancel
+               </Button>
+             </div>
+
+             {/* Additional info */}
+             <div className="text-center pt-2">
+               <p className="text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full inline-block">
+                 🔒 Your information is secure and will only be used for this demo call
+               </p>
+             </div>
+           </div>
+         </DialogContent>
       </Dialog>
       {renderStep()}
-      <Toaster />
     </div>
   );
 };
