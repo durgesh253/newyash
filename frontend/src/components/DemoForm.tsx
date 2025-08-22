@@ -45,6 +45,7 @@ const DemoForm = () => {
   const [pollingStatus, setPollingStatus] = useState('');
   const [callData, setCallData] = useState<CallData | null>(null);
   const [callReport, setCallReport] = useState<CallReport | null>(null);
+  const [isPrefilledFlow, setIsPrefilledFlow] = useState(false);
 
   // Form data state
   const [phone, setPhone] = useState('');
@@ -66,6 +67,20 @@ const DemoForm = () => {
       }, 100);
     }
   }, [currentStep]);
+
+  // Handle URL parameters for pre-filled phone number
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const phoneParam = urlParams.get('phone');
+    
+    if (phoneParam && phoneParam.trim()) {
+      // Set the phone number from URL parameter
+      setPhone(phoneParam.trim());
+      // Automatically move to personalization step
+      setCurrentStep('personalization');
+      setIsPrefilledFlow(true);
+    }
+  }, []);
 
   // Poll for call status and report - OPTIMIZED WITH EXPONENTIAL BACKOFF
   // Alternative: Consider WebSocket connection for real-time updates from Retell
@@ -341,6 +356,7 @@ const DemoForm = () => {
     setVoiceType('Female');
     setIsPolling(false);
     setPollingStatus('');
+    setIsPrefilledFlow(false);
   }, []);
 
   // Memoized utility functions
@@ -356,66 +372,113 @@ const DemoForm = () => {
     return new Date(timestamp).toLocaleString();
   }, []);
 
-
-
   // Render functions
   const renderInitialStep = () => (
     <div className="space-y-6">
       <h3 className="text-3xl md:text-3xl font-bold mb-6 text-center">
-        Your AI Agent Is Calling <span className="text-[#edff81]">- Are You Ready?</span>
+        {isPrefilledFlow 
+          ? "Welcome Back! Let's Continue Your AI Call" 
+          : "Your AI Agent Is Calling - Are You Ready?"
+        }
+        {!isPrefilledFlow && <span className="text-[#edff81]"> - Are You Ready?</span>}
       </h3>
       <div className="justify-items-end">
         <img src="/images/try-it-now-1.png" alt="Try It Now" className="h-48" />
       </div>
-      <div>
-        <PhoneInput
-          country={'us'}
-          value={phone}
-          onChange={handlePhoneChange}
-          inputProps={{
-            name: 'phone',
-            required: true,
-            autoFocus: true,
-            'aria-label': 'Enter your phone number',
-          }}
-          containerStyle={{
-            width: '100%',
-            height: '64px',
-          }}
-          inputStyle={{
-            width: '100%',
-            height: '64px',
-            fontSize: '16px',
-            border: '1px solid #64748b',
-            borderRadius: '6px',
-            backgroundColor: 'white',
-            color: 'black',
-            paddingLeft: '60px',
-          }}
-          buttonStyle={{
-            border: '1px solid #64748b',
-            borderRadius: '6px 0 0 6px',
-            backgroundColor: 'white',
-          }}
-          dropdownStyle={{
-            backgroundColor: 'white',
-            color: 'black',
-          }}
-        />
-      </div>
-      <Button
-        onClick={handlePhoneSubmit}
-        className="w-full h-16 text-lg font-semibold"
-        disabled={!phone || phone.length < 10}
-      >
-        Next <FaArrowRight className="ml-2" />
-      </Button>
+      
+      {/* Only show phone input if not in pre-filled flow */}
+      {!isPrefilledFlow && (
+        <>
+          <div>
+            <PhoneInput
+              country={'us'}
+              value={phone}
+              onChange={handlePhoneChange}
+              inputProps={{
+                name: 'phone',
+                required: true,
+                autoFocus: true,
+                'aria-label': 'Enter your phone number',
+              }}
+              containerStyle={{
+                width: '100%',
+                height: '64px',
+              }}
+              inputStyle={{
+                width: '100%',
+                height: '64px',
+                fontSize: '16px',
+                border: '1px solid #64748b',
+                borderRadius: '6px',
+                backgroundColor: 'white',
+                color: 'black',
+                paddingLeft: '60px',
+              }}
+              buttonStyle={{
+                border: '1px solid #64748b',
+                borderRadius: '6px 0 0 6px',
+                backgroundColor: 'white',
+              }}
+              dropdownStyle={{
+                backgroundColor: 'white',
+                color: 'black',
+              }}
+            />
+          </div>
+          <Button
+            onClick={handlePhoneSubmit}
+            className="w-full h-16 text-lg font-semibold"
+            disabled={!phone || phone.length < 10}
+          >
+            Next <FaArrowRight className="ml-2" />
+          </Button>
+        </>
+      )}
+      
+      {/* Show continue button for pre-filled flow */}
+      {isPrefilledFlow && (
+        <Button
+          onClick={() => setCurrentStep('personalization')}
+          className="w-full h-16 text-lg font-semibold"
+        >
+          Continue Setup <FaArrowRight className="ml-2" />
+        </Button>
+      )}
     </div>
   );
 
   const renderPersonalizationStep = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center">Customize Your AI Call Experience</h2>
+      <h2 className="text-2xl font-bold text-center">
+        {isPrefilledFlow 
+          ? "Complete Your AI Call Setup" 
+          : "Customize Your AI Call Experience"
+        }
+      </h2>
+      
+      {/* Show pre-filled phone number if it came from URL */}
+      {isPrefilledFlow && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-800">Phone Number Pre-filled</p>
+              <p className="text-sm text-blue-600">{phone}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCurrentStep('initial');
+                setIsPrefilledFlow(false);
+              }}
+              className="text-xs text-gray-700 border-gray-300 hover:bg-gray-50"
+            >
+              Change
+            </Button>
+          </div>
+        </div>
+      )}
+      
       <div className="space-y-4">
         <div className="space-y-4">
           <div>
@@ -457,7 +520,7 @@ const DemoForm = () => {
           ) : (
             <>
               <ImMagicWand className="ml-2" />
-              Yes! I Want to Hear the Magic
+              {isPrefilledFlow ? "Start My AI Call" : "Yes! I Want to Hear the Magic"}
             </>
           )}
         </Button>
