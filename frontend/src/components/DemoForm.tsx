@@ -374,8 +374,8 @@ const DemoForm = () => {
 
   // Render functions
   const renderInitialStep = () => (
-    <div className="space-y-6">
-      <h3 className="text-3xl md:text-3xl font-bold mb-6 text-center">
+    <div className="space-y-4">
+      <h3 className="text-2xl md:text-2xl font-bold mb-4 text-center">
         {isPrefilledFlow 
           ? "Welcome Back! Let's Continue Your AI Call" 
           : "Your AI Agent Is Calling - Are You Ready?"
@@ -383,7 +383,7 @@ const DemoForm = () => {
         {!isPrefilledFlow && <span className="text-[#edff81]"> - Are You Ready?</span>}
       </h3>
       <div className="justify-items-end">
-        <img src="/images/try-it-now-1.png" alt="Try It Now" className="h-48" />
+        <img src="/images/try-it-now-1.png" alt="Try It Now" className="h-40" />
       </div>
       
       {/* Only show phone input if not in pre-filled flow */}
@@ -402,12 +402,12 @@ const DemoForm = () => {
               }}
               containerStyle={{
                 width: '100%',
-                height: '64px',
+                height: '48px',
               }}
               inputStyle={{
                 width: '100%',
-                height: '64px',
-                fontSize: '16px',
+                height: '48px',
+                fontSize: '14px',
                 border: '1px solid #64748b',
                 borderRadius: '6px',
                 backgroundColor: 'white',
@@ -427,7 +427,7 @@ const DemoForm = () => {
           </div>
           <Button
             onClick={handlePhoneSubmit}
-            className="w-full h-16 text-lg font-semibold"
+            className="w-full h-12 text-base font-semibold"
             disabled={!phone || phone.length < 10}
           >
             Next <FaArrowRight className="ml-2" />
@@ -439,7 +439,7 @@ const DemoForm = () => {
       {isPrefilledFlow && (
         <Button
           onClick={() => setCurrentStep('personalization')}
-          className="w-full h-16 text-lg font-semibold"
+          className="w-full h-12 text-base font-semibold"
         >
           Continue Setup <FaArrowRight className="ml-2" />
         </Button>
@@ -448,8 +448,8 @@ const DemoForm = () => {
   );
 
   const renderPersonalizationStep = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-center">
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold text-center">
         {isPrefilledFlow 
           ? "Complete Your AI Call Setup" 
           : "Customize Your AI Call Experience"
@@ -458,11 +458,11 @@ const DemoForm = () => {
       
       {/* Show pre-filled phone number if it came from URL */}
       {isPrefilledFlow && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-800">Phone Number Pre-filled</p>
-              <p className="text-sm text-blue-600">{phone}</p>
+              <p className="text-xs font-medium text-blue-800">Phone Number Pre-filled</p>
+              <p className="text-xs text-blue-600">{phone}</p>
             </div>
             <Button
               variant="outline"
@@ -479,8 +479,8 @@ const DemoForm = () => {
         </div>
       )}
       
-      <div className="space-y-4">
-        <div className="space-y-4">
+      <div className="space-y-3">
+        <div className="space-y-3">
           <div>
             <input
               ref={nameInputRef}
@@ -489,7 +489,7 @@ const DemoForm = () => {
               value={name}
               onInput={handleNameInput}
               aria-label="Enter your name"
-              className="w-full h-12 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="w-full h-10 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
             />
           </div>
           <div>
@@ -500,17 +500,17 @@ const DemoForm = () => {
               value={email}
               onInput={handleEmailInput}
               aria-label="Enter your email"
-              className="w-full h-12 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="w-full h-10 px-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
             />
           </div>
         </div>
-        <p className="text-sm text-gray-500 text-center">
+        <p className="text-xs text-gray-500 text-center">
           The call will automatically end after 5 minutes.
         </p>
         <Button
           onClick={handlePersonalizationSubmit}
           disabled={isLoading || !name.trim() || !email.trim()}
-          className="w-full h-12 text-lg font-semibold"
+          className="w-full h-10 text-base font-semibold"
         >
           {isLoading ? (
             <div className="flex items-center">
@@ -529,24 +529,24 @@ const DemoForm = () => {
   );
 
   const renderCallingStep = () => (
-    <div className="text-center space-y-6">
+    <div className="text-center space-y-4">
       <div className="animate-pulse">
-        <BiSolidPhoneCall className="w-16 h-16 mx-auto text-[#edff7e]" />
+        <BiSolidPhoneCall className="w-12 h-12 mx-auto text-[#edff7e]" />
       </div>
-      <h2 className="text-2xl font-bold">We're Calling You Now!</h2>
-      <p className="text-gray-600">We're calling you from this number:</p>
-      <p className="text-xl font-semibold">{callData?.call?.from_number}</p>
+      <h2 className="text-xl font-bold">We're Calling You Now!</h2>
+      <p className="text-gray-600 text-sm">We're calling you from this number:</p>
+      <p className="text-lg font-semibold">{callData?.call?.from_number}</p>
       {callData && (
-        <div className="bg-green-100 p-4 rounded-lg">
-          <p className="text-green-800">Status: {callData.call?.call_status}</p>
+        <div className="bg-green-100 p-3 rounded-lg">
+          <p className="text-green-800 text-sm">Status: {callData.call?.call_status}</p>
         </div>
       )}
-      <div className="text-sm text-gray-500">
+      <div className="text-xs text-gray-500">
         <p>Waiting for call to complete...</p>
         <p>This may take a few minutes</p>
         {isPolling && (
           <div className="mt-2 flex items-center justify-center">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
             <span>{pollingStatus || 'Checking call status...'}</span>
           </div>
         )}
@@ -666,7 +666,7 @@ const DemoForm = () => {
   };
 
   return (
-    <div className="backdrop-blur-sm rounded-2xl p-8 border border-slate-700 bg-black/[0.31]">
+    <div className="backdrop-blur-sm rounded-2xl p-4 border border-slate-700 bg-black/[0.31]">
       <Dialog open={tcpaModalOpen} onOpenChange={(open) => {
         if (!open) {
           // If user closes modal without agreeing, go back to personalization step
